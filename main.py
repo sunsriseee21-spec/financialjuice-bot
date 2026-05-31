@@ -9,7 +9,7 @@ from datetime import datetime
 BOT_TOKEN = "8921896859:AAF7biUHKm_sD5rdpVvB9ybnxMYXCzvfozk"
 CHAT_ID = "-1003890278221"
 THREAD_ID = 11480
-RSS_URL = "https://www.financialjuice.com/feed"
+RSS_URL = "https://www.financialjuice.com/feed.ashx?xy=rss"
 CHECK_INTERVAL = 60  # cek tiap 60 detik
 SENT_FILE = "sent_ids.json"
 # =======================================================
