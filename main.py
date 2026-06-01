@@ -29,6 +29,7 @@ BULAN_INDO = {
 def format_tanggal_indo(pub_date):
     """Ubah format tanggal ke Bahasa Indonesia"""
     try:
+        # Format asli: Mon, 01 Jun 2026 10:36:11 GMT
         for en, id in HARI_INDO.items():
             pub_date = pub_date.replace(en, id)
         for en, id in BULAN_INDO.items():
@@ -41,33 +42,75 @@ def get_flag_emoji(title):
     """Tentukan bendera/emoji berdasarkan isi berita"""
     title_lower = title.lower()
 
+    # Grafik/Chart
     if any(k in title_lower for k in ["currency strength", "fx strength", "strongest", "weakest", "market wrap", "wrap", "imbalance", "option expiries"]):
         return "📊"
+
+    # Geopolitik
     if any(k in title_lower for k in ["war", "attack", "missile", "nuclear", "blockade", "ceasefire", "strike", "military", "troops"]):
         return "🌍"
-    if any(k in title_lower for k in ["fed", "fomc", "powell", "daly", "waller", "us ", "u.s.", "united states", "america", "white house", "trump", "pentagon"]):
+
+    # Amerika (USD)
+    if any(k in title_lower for k in ["fed", "fomc", "powell", "daly", "waller", "us ", "u.s.", "united states", "america", "nfp", "non-farm", "cpi", "pce", "gdp", "unemployment", "jolts", "adp", "ism", "eia", "baker hughes", "white house", "trump", "pentagon"]):
         return "🇺🇸"
+
+    # Eropa (EUR)
     if any(k in title_lower for k in ["ecb", "lagarde", "lane", "schnabel", "villeroy", "eurozone", "euro zone", "germany", "german", "france", "italy", "spain", "ifo", "zew"]):
         return "🇪🇺"
+
+    # Inggris (GBP)
     if any(k in title_lower for k in ["boe", "bank of england", "bailey", "pill", "uk ", "united kingdom", "britain", "british"]):
         return "🇬🇧"
+
+    # Jepang (JPY)
     if any(k in title_lower for k in ["boj", "bank of japan", "ueda", "himino", "japan", "japanese", "tankan", "takaichi"]):
         return "🇯🇵"
+
+    # Swiss (CHF)
     if any(k in title_lower for k in ["snb", "swiss", "switzerland", "jordan", "schlegel"]):
         return "🇨🇭"
+
+    # Australia (AUD)
     if any(k in title_lower for k in ["rba", "australia", "australian", "bullock"]):
         return "🇦🇺"
+
+    # Selandia Baru (NZD)
     if any(k in title_lower for k in ["rbnz", "new zealand", "orr"]):
         return "🇳🇿"
+
+    # Kanada (CAD)
     if any(k in title_lower for k in ["boc", "bank of canada", "macklem", "canada", "canadian"]):
         return "🇨🇦"
+
+    # China (CNH)
     if any(k in title_lower for k in ["pboc", "china", "chinese", "yuan", "renminbi"]):
         return "🇨🇳"
+
+    # Default
     return "📰"
 
-# ========== KEYWORD UNTUK HIGH IMPACT (SETELAH PERBAIKAN) ==========
-# Hanya BANK SENTRAL (keputusan suku bunga), EKSPEKTASI, SESI, dan MARKET RISK
-# DATA EKONOMI biasa (CPI, NFP, GDP, dll) DIHAPUS
+DATA_EKONOMI_KEYWORDS = [
+    "actual", "forecast", "previous",
+    "nfp", "non-farm", "nonfarm",
+    "cpi", "pce", "gdp",
+    "unemployment", "jobless",
+    "retail sales", "ism", "pmi",
+    "durable goods", "housing",
+    "trade balance", "eia",
+    "baker hughes", "rig count",
+    "jolts", "adp",
+    "eurozone", "euro zone",
+    "german", "germany",
+    "france", "italy", "spain",
+    "ifo", "zew", "sentix",
+    "japan", "japanese", "tankan",
+    "uk ", "united kingdom", "britain",
+    "swiss", "switzerland",
+    "australia", "australian",
+    "new zealand",
+    "canada", "canadian",
+    "china", "chinese",
+]
 
 BANK_SENTRAL_KEYWORDS = [
     "rate decision", "interest rate",
@@ -116,75 +159,59 @@ SESI_KEYWORDS = [
     "strongest", "weakest",
 ]
 
-# KEYWORD TAMBAHAN: "Need to know market risk"
-RISK_KEYWORDS = [
-    "market risk", "risk sentiment", "risk appetite", "risk warning",
-    "need to know", "market warning", "risk off", "risk on",
-    "volatility warning", "market exposure", "risk alert"
-]
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+            return set(data.get("ids", [])), set(data.get("titles", []))
+    return set(), set()
+
+def save_data(sent_ids, sent_titles):
+    with open(DATA_FILE, "w") as f:
+        json.dump({
+            "ids": list(sent_ids),
+            "titles": list(sent_titles)
+        }, f)
+
+def normalize_title(title):
+    title = title.lower().strip()
+    title = re.sub(r'[^a-z0-9\s]', '', title)
+    title = re.sub(r'\s+', ' ', title)
+    return title
+
+def extract_tradingview_chart(description):
+    if not description:
+        return None
+    if "tradingview" not in description.lower():
+        return None
+    match = re.search(r'chart["\s:]+["\s]*([A-Za-z0-9]{8})', description)
+    if match:
+        return match.group(1)
+    return "found"
 
 def is_high_impact(title, description):
-    """Menentukan apakah berita high impact.
-    - Data ekonomi biasa TIDAK termasuk.
-    - Hanya: Keputusan suku bunga (bank sentral), ekspektasi pasar, sesi pasar, dan risiko pasar.
-    """
     title_lower = title.lower()
 
-    # Bank sentral (termasuk rate decision)
+    if extract_tradingview_chart(description):
+        return True, "chart"
+
+    for kw in DATA_EKONOMI_KEYWORDS:
+        if kw in title_lower:
+            return True, "data"
+
     for kw in BANK_SENTRAL_KEYWORDS:
         if kw in title_lower:
             return True, "bank"
 
-    # Ekspektasi pasar
     for kw in EKSPEKTASI_KEYWORDS:
         if kw in title_lower:
             return True, "ekspektasi"
 
-    # Sesi pasar
     for kw in SESI_KEYWORDS:
         if kw in title_lower:
             return True, "sesi"
 
-    # Market risk (Need to know market risk)
-    for kw in RISK_KEYWORDS:
-        if kw in title_lower:
-            return True, "risk"
-
     return False, None
-
-def extract_tradingview_chart(description):
-    """Ekstrak link TradingView dari deskripsi. Return URL lengkap atau None."""
-    if not description:
-        return None
-
-    # Cari URL TradingView langsung
-    match = re.search(r'https?://(?:www\.)?tradingview\.com/chart/([A-Za-z0-9]+)', description)
-    if match:
-        return f"https://www.tradingview.com/chart/{match.group(1)}/"
-
-    # Cari pola chart = "KODE8KARAKTER" atau chart: KODE
-    match = re.search(r'chart["\s:]+["\s]*([A-Za-z0-9]{8,12})', description)
-    if match:
-        return f"https://www.tradingview.com/chart/{match.group(1)}/"
-
-    # Jika ada kata tradingview tapi tidak ditemukan pola, coba cari dalam tag href
-    match = re.search(r'href=["\']([^"\']*tradingview\.com/chart/[^"\']+)["\']', description, re.IGNORECASE)
-    if match:
-        return match.group(1)
-
-    return None
-
-def load_data():
-    """Load link yang sudah pernah dikirim."""
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            data = json.load(f)
-            return set(data.get("links", []))
-    return set()
-
-def save_data(sent_links):
-    with open(DATA_FILE, "w") as f:
-        json.dump({"links": list(sent_links)}, f)
 
 def translate_to_indonesian(text):
     try:
@@ -225,7 +252,7 @@ def send_to_telegram(message):
     except Exception as e:
         print(f"❌ Error telegram: {e}")
 
-def format_message(entry, translated_title, chart_url):
+def format_message(entry, translated_title, chart_id=None):
     pub_date = format_tanggal_indo(entry.get("published", ""))
     link = entry.get("link", "")
     flag = get_flag_emoji(translated_title + " " + entry.get("title", ""))
@@ -236,31 +263,29 @@ def format_message(entry, translated_title, chart_url):
         f"🔗 <a href='{link}'>Baca selengkapnya</a>\n"
         f"🕐 {pub_date}"
     )
-    if chart_url:
+
+    if chart_id and chart_id != "found":
+        chart_url = f"https://www.tradingview.com/chart/{chart_id}/"
         message += f"\n📊 <a href='{chart_url}'>Lihat Chart TradingView</a>"
+    elif chart_id == "found":
+        message += f"\n📊 <a href='{link}'>Lihat Chart di FinancialJuice</a>"
+
     return message
 
 def main():
-    print("🤖 Bot FinancialJuice HIGH IMPACT (Rate Decision + Market Risk) dimulai...")
-    sent_links = load_data()
+    print("🤖 Bot FinancialJuice HIGH IMPACT dimulai...")
+    sent_ids, sent_titles = load_data()
 
-    # Jika pertama kali, jangan skip semua berita lama? Biarkan kosong agar langsung membaca baru.
-    # Tapi agar tidak mengirim berita lama saat pertama jalan, kita bisa isi dengan 50 link terbaru?
-    # Alternatif: biarkan kosong, nanti akan terkirim semua berita yang masuk kategori saat startup.
-    # Agar tidak flood, lebih baik kita preload beberapa link terbaru dari feed pertama.
-    if not sent_links:
-        print("📋 Preloading beberapa link terbaru untuk menghindari spam...")
+    if not sent_ids:
+        print("📋 Loading berita lama...")
         feed = feedparser.parse(RSS_URL)
-        count = 0
         for entry in feed.entries:
-            link = entry.get("link", "")
-            if link:
-                sent_links.add(link)
-                count += 1
-                if count >= 50:  # ambil 50 link terbaru sebagai sudah terkirim
-                    break
-        save_data(sent_links)
-        print(f"✅ Preloaded {len(sent_links)} link. Menunggu berita BARU...")
+            entry_id = entry.get("id", entry.get("link", ""))
+            sent_ids.add(entry_id)
+            title = entry.get("title", "").replace("FinancialJuice: ", "").strip()
+            sent_titles.add(normalize_title(title))
+        save_data(sent_ids, sent_titles)
+        print(f"✅ {len(sent_ids)} berita lama dilewati. Menunggu berita BARU...")
 
     while True:
         try:
@@ -269,36 +294,41 @@ def main():
 
             new_count = 0
             for entry in feed.entries:
-                entry_link = entry.get("link", "")
-                if not entry_link:
+                entry_id = entry.get("id", entry.get("link", ""))
+
+                if entry_id in sent_ids:
                     continue
-                if entry_link in sent_links:
-                    continue  # sudah pernah dikirim
 
                 original_title = entry.get("title", "").replace("FinancialJuice: ", "").strip()
                 description = entry.get("description", "") or entry.get("summary", "")
+                normalized = normalize_title(original_title)
+
+                if normalized in sent_titles:
+                    print(f"🔄 Duplikat: {original_title[:60]}...")
+                    sent_ids.add(entry_id)
+                    save_data(sent_ids, sent_titles)
+                    continue
 
                 hit, category = is_high_impact(original_title, description)
 
                 if hit:
-                    chart_url = extract_tradingview_chart(description)
+                    chart_id = extract_tradingview_chart(description)
                     print(f"⚡ [{category.upper()}] {original_title[:70]}...")
                     translated = translate_to_indonesian(original_title)
-                    message = format_message(entry, translated, chart_url)
+                    message = format_message(entry, translated, chart_id)
                     send_to_telegram(message)
-                    sent_links.add(entry_link)
-                    save_data(sent_links)
+                    sent_titles.add(normalized)
+                    sent_ids.add(entry_id)
+                    save_data(sent_ids, sent_titles)
                     new_count += 1
-                    time.sleep(2)  # jeda antar kirim
+                    time.sleep(2)
                 else:
-                    # Tidak high impact, tetap tandai sebagai sudah dilihat agar tidak diproses ulang
-                    sent_links.add(entry_link)
-                    # Optional: print skip jika ingin debug
-                    # print(f"⏭ Skip: {original_title[:60]}...")
+                    print(f"⏭ Skip: {original_title[:60]}...")
+                    sent_ids.add(entry_id)
 
-            save_data(sent_links)
+            save_data(sent_ids, sent_titles)
             if new_count == 0:
-                print("💤 Tidak ada berita HIGH IMPACT baru (Rate Decision / Market Risk).")
+                print("💤 Tidak ada berita HIGH IMPACT baru.")
 
         except Exception as e:
             print(f"❌ Error: {e}")
