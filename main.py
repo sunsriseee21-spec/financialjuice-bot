@@ -16,8 +16,8 @@ DATA_FILE = "bot_data.json"
 # =======================================================
 
 HARI_INDO = {
-    "Monday": "Senin", "Tuesday": "Selasa", "Wednesday": "Rabu",
-    "Thursday": "Kamis", "Friday": "Jumat", "Saturday": "Sabtu", "Sunday": "Minggu"
+    "Mon": "Sen", "Tue": "Sel", "Wed": "Rab",
+    "Thu": "Kam", "Fri": "Jum", "Sat": "Sab", "Sun": "Min"
 }
 
 BULAN_INDO = {
@@ -27,9 +27,7 @@ BULAN_INDO = {
 }
 
 def format_tanggal_indo(pub_date):
-    """Ubah format tanggal ke Bahasa Indonesia"""
     try:
-        # Format asli: Mon, 01 Jun 2026 10:36:11 GMT
         for en, id in HARI_INDO.items():
             pub_date = pub_date.replace(en, id)
         for en, id in BULAN_INDO.items():
@@ -39,102 +37,81 @@ def format_tanggal_indo(pub_date):
         return pub_date
 
 def get_flag_emoji(title):
-    """Tentukan bendera/emoji berdasarkan isi berita"""
-    title_lower = title.lower()
+    t = title.lower()
 
-    # Grafik/Chart
-    if any(k in title_lower for k in ["currency strength", "fx strength", "strongest", "weakest", "market wrap", "wrap", "imbalance", "option expiries"]):
+    # Grafik & Sesi (cek dulu)
+    if any(k in t for k in ["currency strength", "fx strength", "strongest", "weakest",
+                              "market wrap", "market summary", "asia wrap", "europe wrap",
+                              "us wrap", "london wrap", "daily wrap", "weekly wrap",
+                              "moo imbalance", "moc imbalance", "option expiries",
+                              "need to know", "market risk"]):
         return "📊"
 
-    # Geopolitik
-    if any(k in title_lower for k in ["war", "attack", "missile", "nuclear", "blockade", "ceasefire", "strike", "military", "troops"]):
-        return "🌍"
-
-    # Amerika (USD)
-    if any(k in title_lower for k in ["fed", "fomc", "powell", "daly", "waller", "us ", "u.s.", "united states", "america", "nfp", "non-farm", "cpi", "pce", "gdp", "unemployment", "jolts", "adp", "ism", "eia", "baker hughes", "white house", "trump", "pentagon"]):
-        return "🇺🇸"
-
-    # Eropa (EUR)
-    if any(k in title_lower for k in ["ecb", "lagarde", "lane", "schnabel", "villeroy", "eurozone", "euro zone", "germany", "german", "france", "italy", "spain", "ifo", "zew"]):
-        return "🇪🇺"
-
-    # Inggris (GBP)
-    if any(k in title_lower for k in ["boe", "bank of england", "bailey", "pill", "uk ", "united kingdom", "britain", "british"]):
-        return "🇬🇧"
-
-    # Jepang (JPY)
-    if any(k in title_lower for k in ["boj", "bank of japan", "ueda", "himino", "japan", "japanese", "tankan", "takaichi"]):
-        return "🇯🇵"
-
-    # Swiss (CHF)
-    if any(k in title_lower for k in ["snb", "swiss", "switzerland", "jordan", "schlegel"]):
-        return "🇨🇭"
-
-    # Australia (AUD)
-    if any(k in title_lower for k in ["rba", "australia", "australian", "bullock"]):
-        return "🇦🇺"
-
-    # Selandia Baru (NZD)
-    if any(k in title_lower for k in ["rbnz", "new zealand", "orr"]):
+    # NZD
+    if any(k in t for k in ["new zealand", "rbnz", "orr", "nzd"]):
         return "🇳🇿"
 
-    # Kanada (CAD)
-    if any(k in title_lower for k in ["boc", "bank of canada", "macklem", "canada", "canadian"]):
+    # AUD
+    if any(k in t for k in ["australia", "australian", "rba", "bullock", "aud"]):
+        return "🇦🇺"
+
+    # CAD
+    if any(k in t for k in ["canada", "canadian", "boc", "bank of canada", "macklem", "cad"]):
         return "🇨🇦"
 
-    # China (CNH)
-    if any(k in title_lower for k in ["pboc", "china", "chinese", "yuan", "renminbi"]):
+    # CHF
+    if any(k in t for k in ["swiss", "switzerland", "snb", "jordan", "schlegel", "chf"]):
+        return "🇨🇭"
+
+    # JPY
+    if any(k in t for k in ["japan", "japanese", "boj", "bank of japan", "ueda",
+                              "himino", "tankan", "takaichi", "jpy"]):
+        return "🇯🇵"
+
+    # CNH
+    if any(k in t for k in ["china", "chinese", "pboc", "yuan", "renminbi", "cnh", "cny"]):
         return "🇨🇳"
 
-    # Default
+    # GBP
+    if any(k in t for k in ["boe", "bank of england", "bailey", "pill", "mann",
+                              "uk ", "united kingdom", "britain", "british", "gbp"]):
+        return "🇬🇧"
+
+    # EUR
+    if any(k in t for k in ["ecb", "lagarde", "lane", "schnabel", "villeroy",
+                              "eurozone", "euro zone", "germany", "german",
+                              "france", "italy", "spain", "ifo", "zew", "eur"]):
+        return "🇪🇺"
+
+    # USD
+    if any(k in t for k in ["fed", "fomc", "federal reserve", "powell", "daly",
+                              "waller", "kugler", "jefferson", "barkin", "bostic",
+                              "us ", "u.s.", "united states", "america",
+                              "white house", "trump", "pentagon", "usd"]):
+        return "🇺🇸"
+
+    # Geopolitik
+    if any(k in t for k in ["war", "attack", "missile", "nuclear", "blockade",
+                              "ceasefire", "strike", "military", "troops",
+                              "iran", "israel", "ukraine", "russia"]):
+        return "🌍"
+
     return "📰"
 
-DATA_EKONOMI_KEYWORDS = [
-    "actual", "forecast", "previous",
-    "nfp", "non-farm", "nonfarm",
-    "cpi", "pce", "gdp",
-    "unemployment", "jobless",
-    "retail sales", "ism", "pmi",
-    "durable goods", "housing",
-    "trade balance", "eia",
-    "baker hughes", "rig count",
-    "jolts", "adp",
-    "eurozone", "euro zone",
-    "german", "germany",
-    "france", "italy", "spain",
-    "ifo", "zew", "sentix",
-    "japan", "japanese", "tankan",
-    "uk ", "united kingdom", "britain",
-    "swiss", "switzerland",
-    "australia", "australian",
-    "new zealand",
-    "canada", "canadian",
-    "china", "chinese",
-]
-
+# === FILTER 1: Bank Sentral & Suku Bunga ===
 BANK_SENTRAL_KEYWORDS = [
+    # Keputusan suku bunga
     "rate decision", "interest rate",
     "rate hike", "rate cut", "rate hold",
     "basis points", "bps",
-    "minutes",
+
+    # Risalah & Vote
+    "minutes", "vote", "voting",
     "monetary policy", "forward guidance",
     "quantitative", "balance sheet",
-    "powell", "daly", "waller", "kugler",
-    "jefferson", "barkin", "bostic",
-    "bailey", "pill", "mann",
-    "lagarde", "lane", "schnabel", "villeroy",
-    "ueda", "himino", "takaichi",
-    "macklem", "bullock", "orr",
-    "jordan", "schlegel",
-    "federal reserve", "fomc",
-    "bank of england", "boe",
-    "ecb", "boj", "rba", "rbnz",
-    "snb", "pboc", "boc",
-]
 
-EKSPEKTASI_KEYWORDS = [
-    "probability", "probabilitas",
-    "odds", "pricing in",
+    # Ekspektasi/Probabilitas
+    "probability", "odds", "pricing in",
     "market expects", "market pricing",
     "market bets", "swaps",
     "futures imply", "futures price",
@@ -142,42 +119,61 @@ EKSPEKTASI_KEYWORDS = [
     "likely to cut", "likely to hold", "likely to hike",
     "rate expectations", "rate outlook",
     "dovish", "hawkish",
+
+    # Nama pejabat Fed
+    "powell", "daly", "waller", "kugler",
+    "jefferson", "barkin", "bostic",
+
+    # Nama pejabat BoE
+    "bailey", "pill", "mann",
+
+    # Nama pejabat ECB
+    "lagarde", "lane", "schnabel", "villeroy",
+
+    # Nama pejabat BoJ
+    "ueda", "himino", "takaichi",
+
+    # Nama pejabat lain
+    "macklem", "bullock", "orr",
+    "jordan", "schlegel",
+
+    # Nama bank sentral
+    "federal reserve", "fomc",
+    "bank of england", "boe",
+    "ecb", "boj", "rba", "rbnz",
+    "snb", "pboc", "boc",
 ]
 
+# === FILTER 2: Ringkasan Sesi & Grafik ===
 SESI_KEYWORDS = [
-    "market wrap",
-    "market summary", "market review",
+    "market wrap", "market summary", "market review",
     "market open", "market close",
-    "asia wrap", "asian wrap",
-    "europe wrap", "european wrap",
+    "asia wrap", "asian wrap", "asia session",
+    "europe wrap", "european wrap", "europe open",
     "us wrap", "us open", "us session",
     "london wrap", "london open",
     "daily wrap", "weekly wrap",
     "fx option expiries", "option expiries",
     "moo imbalance", "moc imbalance",
     "currency strength", "fx strength",
-    "strongest", "weakest",
+    "strongest", "weakest", "currency performance",
+    "need to know", "market risk",
 ]
 
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
             data = json.load(f)
-            return set(data.get("ids", [])), set(data.get("titles", []))
+            # Pakai link sebagai kunci duplikat
+            return set(data.get("ids", [])), set(data.get("links", []))
     return set(), set()
 
-def save_data(sent_ids, sent_titles):
+def save_data(sent_ids, sent_links):
     with open(DATA_FILE, "w") as f:
         json.dump({
             "ids": list(sent_ids),
-            "titles": list(sent_titles)
+            "links": list(sent_links)
         }, f)
-
-def normalize_title(title):
-    title = title.lower().strip()
-    title = re.sub(r'[^a-z0-9\s]', '', title)
-    title = re.sub(r'\s+', ' ', title)
-    return title
 
 def extract_tradingview_chart(description):
     if not description:
@@ -192,21 +188,16 @@ def extract_tradingview_chart(description):
 def is_high_impact(title, description):
     title_lower = title.lower()
 
+    # Cek chart TradingView
     if extract_tradingview_chart(description):
         return True, "chart"
 
-    for kw in DATA_EKONOMI_KEYWORDS:
-        if kw in title_lower:
-            return True, "data"
-
+    # Cek bank sentral & suku bunga
     for kw in BANK_SENTRAL_KEYWORDS:
         if kw in title_lower:
             return True, "bank"
 
-    for kw in EKSPEKTASI_KEYWORDS:
-        if kw in title_lower:
-            return True, "ekspektasi"
-
+    # Cek ringkasan sesi & grafik
     for kw in SESI_KEYWORDS:
         if kw in title_lower:
             return True, "sesi"
@@ -255,7 +246,8 @@ def send_to_telegram(message):
 def format_message(entry, translated_title, chart_id=None):
     pub_date = format_tanggal_indo(entry.get("published", ""))
     link = entry.get("link", "")
-    flag = get_flag_emoji(translated_title + " " + entry.get("title", ""))
+    original_title = entry.get("title", "").replace("FinancialJuice: ", "").strip()
+    flag = get_flag_emoji(original_title)
 
     message = (
         f"📡 <b>FinancialJuice</b>\n\n"
@@ -266,25 +258,25 @@ def format_message(entry, translated_title, chart_id=None):
 
     if chart_id and chart_id != "found":
         chart_url = f"https://www.tradingview.com/chart/{chart_id}/"
-        message += f"\n📊 <a href='{chart_url}'>Lihat Chart TradingView</a>"
+        message += f"\n📊 Chart: <a href='{chart_url}'>TradingView</a>"
     elif chart_id == "found":
-        message += f"\n📊 <a href='{link}'>Lihat Chart di FinancialJuice</a>"
+        message += f"\n📊 Chart: <a href='{link}'>FinancialJuice</a>"
 
     return message
 
 def main():
-    print("🤖 Bot FinancialJuice HIGH IMPACT dimulai...")
-    sent_ids, sent_titles = load_data()
+    print("🤖 Bot FinancialJuice dimulai...")
+    sent_ids, sent_links = load_data()
 
     if not sent_ids:
         print("📋 Loading berita lama...")
         feed = feedparser.parse(RSS_URL)
         for entry in feed.entries:
             entry_id = entry.get("id", entry.get("link", ""))
+            entry_link = entry.get("link", "")
             sent_ids.add(entry_id)
-            title = entry.get("title", "").replace("FinancialJuice: ", "").strip()
-            sent_titles.add(normalize_title(title))
-        save_data(sent_ids, sent_titles)
+            sent_links.add(entry_link)
+        save_data(sent_ids, sent_links)
         print(f"✅ {len(sent_ids)} berita lama dilewati. Menunggu berita BARU...")
 
     while True:
@@ -295,19 +287,21 @@ def main():
             new_count = 0
             for entry in feed.entries:
                 entry_id = entry.get("id", entry.get("link", ""))
+                entry_link = entry.get("link", "")
 
+                # Lapis 1: cek ID
                 if entry_id in sent_ids:
+                    continue
+
+                # Lapis 2: cek Link URL (anti duplikat utama)
+                if entry_link in sent_links:
+                    print(f"🔄 Duplikat (link): {entry_link[-50:]}...")
+                    sent_ids.add(entry_id)
+                    save_data(sent_ids, sent_links)
                     continue
 
                 original_title = entry.get("title", "").replace("FinancialJuice: ", "").strip()
                 description = entry.get("description", "") or entry.get("summary", "")
-                normalized = normalize_title(original_title)
-
-                if normalized in sent_titles:
-                    print(f"🔄 Duplikat: {original_title[:60]}...")
-                    sent_ids.add(entry_id)
-                    save_data(sent_ids, sent_titles)
-                    continue
 
                 hit, category = is_high_impact(original_title, description)
 
@@ -317,18 +311,19 @@ def main():
                     translated = translate_to_indonesian(original_title)
                     message = format_message(entry, translated, chart_id)
                     send_to_telegram(message)
-                    sent_titles.add(normalized)
                     sent_ids.add(entry_id)
-                    save_data(sent_ids, sent_titles)
+                    sent_links.add(entry_link)
+                    save_data(sent_ids, sent_links)
                     new_count += 1
                     time.sleep(2)
                 else:
                     print(f"⏭ Skip: {original_title[:60]}...")
                     sent_ids.add(entry_id)
+                    sent_links.add(entry_link)
 
-            save_data(sent_ids, sent_titles)
+            save_data(sent_ids, sent_links)
             if new_count == 0:
-                print("💤 Tidak ada berita HIGH IMPACT baru.")
+                print("💤 Tidak ada berita baru.")
 
         except Exception as e:
             print(f"❌ Error: {e}")
