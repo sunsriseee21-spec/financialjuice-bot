@@ -100,63 +100,24 @@ def get_flag_emoji(title):
 
 # === FILTER 1: Bank Sentral & Suku Bunga ===
 BANK_SENTRAL_KEYWORDS = [
-    # Keputusan suku bunga
-    "rate decision", "interest rate",
-    "rate hike", "rate cut", "rate hold",
-    "basis points", "bps",
-
-    # Risalah & Vote
-    "minutes", "vote", "voting",
-    "monetary policy", "forward guidance",
-    "quantitative", "balance sheet",
-
-    # Ekspektasi/Probabilitas
-    "probability", "odds", "pricing in",
-    "market expects", "market pricing",
-    "market bets", "swaps",
-    "futures imply", "futures price",
-    "expected to cut", "expected to hold", "expected to hike",
-    "likely to cut", "likely to hold", "likely to hike",
-    "rate expectations", "rate outlook",
-    "dovish", "hawkish",
-
-    # Nama pejabat Fed
-    "powell", "daly", "waller", "kugler",
-    "jefferson", "barkin", "bostic",
-
-    # Nama pejabat BoE
-    "bailey", "pill", "mann",
-
-    # Nama pejabat ECB
-    "lagarde", "lane", "schnabel", "villeroy",
-
-    # Nama pejabat BoJ
-    "ueda", "himino", "takaichi",
-
-    # Nama pejabat lain
-    "macklem", "bullock", "orr",
-    "jordan", "schlegel",
-
-    # Nama bank sentral
-    "federal reserve", "fomc",
-    "bank of england", "boe",
-    "ecb", "boj", "rba", "rbnz",
-    "snb", "pboc", "boc",
+    "rate decision", "interest rate", "rate hike", "rate cut", "rate hold", "basis points", "bps",
+    "minutes", "vote", "voting", "monetary policy", "forward guidance", "quantitative", "balance sheet",
+    "probability", "odds", "pricing in", "market expects", "market pricing", "market bets", "swaps",
+    "futures imply", "futures price", "expected to cut", "expected to hold", "expected to hike",
+    "likely to cut", "likely to hold", "likely to hike", "rate expectations", "rate outlook",
+    "dovish", "hawkish", "powell", "daly", "waller", "kugler", "jefferson", "barkin", "bostic",
+    "bailey", "pill", "mann", "lagarde", "lane", "schnabel", "villeroy", "ueda", "himino", "takaichi",
+    "macklem", "bullock", "orr", "jordan", "schlegel", "federal reserve", "fomc",
+    "bank of england", "boe", "ecb", "boj", "rba", "rbnz", "snb", "pboc", "boc",
 ]
 
 # === FILTER 2: Ringkasan Sesi & Grafik ===
 SESI_KEYWORDS = [
-    "market wrap", "market summary", "market review",
-    "market open", "market close",
-    "asia wrap", "asian wrap", "asia session",
-    "europe wrap", "european wrap", "europe open",
-    "us wrap", "us open", "us session",
-    "london wrap", "london open",
-    "daily wrap", "weekly wrap",
-    "fx option expiries", "option expiries",
-    "moo imbalance", "moc imbalance",
-    "currency strength", "fx strength",
-    "strongest", "weakest", "currency performance",
+    "market wrap", "market summary", "market review", "market open", "market close",
+    "asia wrap", "asian wrap", "asia session", "europe wrap", "european wrap", "europe open",
+    "us wrap", "us open", "us session", "london wrap", "london open", "daily wrap", "weekly wrap",
+    "fx option expiries", "option expiries", "moo imbalance", "moc imbalance",
+    "currency strength", "fx strength", "strongest", "weakest", "currency performance",
     "need to know", "market risk",
 ]
 
@@ -164,7 +125,6 @@ def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
             data = json.load(f)
-            # Pakai link sebagai kunci duplikat
             return set(data.get("ids", [])), set(data.get("links", []))
     return set(), set()
 
@@ -188,16 +148,13 @@ def extract_tradingview_chart(description):
 def is_high_impact(title, description):
     title_lower = title.lower()
 
-    # Cek chart TradingView
     if extract_tradingview_chart(description):
         return True, "chart"
 
-    # Cek bank sentral & suku bunga
     for kw in BANK_SENTRAL_KEYWORDS:
         if kw in title_lower:
             return True, "bank"
 
-    # Cek ringkasan sesi & grafik
     for kw in SESI_KEYWORDS:
         if kw in title_lower:
             return True, "sesi"
@@ -243,7 +200,8 @@ def send_to_telegram(message):
     except Exception as e:
         print(f"❌ Error telegram: {e}")
 
-def format_message(entry, translated_title, chart_id=None):
+# REVISI: Fungsi ini sekarang menerima deskripsi/ringkasan yang sudah diterjemahkan
+def format_message(entry, translated_title, translated_desc, chart_id=None):
     pub_date = format_tanggal_indo(entry.get("published", ""))
     link = entry.get("link", "")
     original_title = entry.get("title", "").replace("FinancialJuice: ", "").strip()
@@ -252,6 +210,13 @@ def format_message(entry, translated_title, chart_id=None):
     message = (
         f"📡 <b>FinancialJuice</b>\n\n"
         f"{flag} <b>{translated_title}</b>\n\n"
+    )
+    
+    # REVISI: Menyisipkan isi berita yang SUDAH ditranslate (jika ada isinya)
+    if translated_desc and translated_desc.lower() != translated_title.lower():
+         message += f"📝 <i>{translated_desc}</i>\n\n"
+
+    message += (
         f"🔗 <a href='{link}'>Baca selengkapnya</a>\n"
         f"🕐 {pub_date}"
     )
@@ -289,11 +254,9 @@ def main():
                 entry_id = entry.get("id", entry.get("link", ""))
                 entry_link = entry.get("link", "")
 
-                # Lapis 1: cek ID
                 if entry_id in sent_ids:
                     continue
 
-                # Lapis 2: cek Link URL (anti duplikat utama)
                 if entry_link in sent_links:
                     print(f"🔄 Duplikat (link): {entry_link[-50:]}...")
                     sent_ids.add(entry_id)
@@ -308,8 +271,20 @@ def main():
                 if hit:
                     chart_id = extract_tradingview_chart(description)
                     print(f"⚡ [{category.upper()}] {original_title[:70]}...")
-                    translated = translate_to_indonesian(original_title)
-                    message = format_message(entry, translated, chart_id)
+                    
+                    # REVISI: Translate judul
+                    translated_title = translate_to_indonesian(original_title)
+                    
+                    # REVISI: Membersihkan tag HTML dari deskripsi, batasi panjangnya, lalu Translate
+                    clean_desc = re.sub(r'<[^>]+>', '', description).strip()
+                    if len(clean_desc) > 800:
+                        clean_desc = clean_desc[:800] + "..."
+                    
+                    translated_desc = translate_to_indonesian(clean_desc) if clean_desc else ""
+                    
+                    # REVISI: Masukkan translated_desc ke format pesan
+                    message = format_message(entry, translated_title, translated_desc, chart_id)
+                    
                     send_to_telegram(message)
                     sent_ids.add(entry_id)
                     sent_links.add(entry_link)
