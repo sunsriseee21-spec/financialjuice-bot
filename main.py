@@ -269,19 +269,15 @@ FOREX_KEYWORDS = [
 
 # === 3. Komoditas ===
 COMMODITY_KEYWORDS = [
-    # Emas & Perak
-    "gold", "silver", "xau", "xag",
-    "bullion", "precious metal",
+    # Emas
+    "gold", "xau", "bullion",
 
-    # Minyak & Gas
+    # Perak
+    "xag", "silver",
+
+    # Minyak
     "oil", "crude", "brent", "wti", "opec", "opec+",
-    "petroleum", "natural gas", "lng", "energy",
-    "oil production", "oil supply", "oil demand",
-    "oil price", "energy price",
-
-    # Logam lain
-    "copper", "iron ore", "aluminum", "nickel",
-    "commodity", "commodities", "raw material",
+    "oil price", "oil production", "oil supply", "oil demand",
 ]
 
 # === 4. Yield & Obligasi ===
@@ -306,33 +302,12 @@ SAHAM_KEYWORDS = [
     "rally", "selloff", "sell-off",
 ]
 
-# === 6. Geopolitik Market-Moving ===
-GEOPOLITIK_KEYWORDS = [
-    # Konflik yang pengaruhi pasar
-    "iran", "israel", "ukraine", "russia",
-    "taiwan", "north korea", "middle east",
-    "war", "ceasefire", "sanctions", "embargo",
-    "blockade", "attack", "missile", "military",
-    "conflict", "tension", "escalation",
-
-    # Perdagangan & Kebijakan
-    "tariff", "tariffs", "trade war", "trade deal",
-    "trade deficit", "trade surplus",
-    "import", "export", "wto",
-    "g7", "g20", "imf", "world bank",
-    "fiscal", "stimulus", "bailout",
-    "debt ceiling", "budget",
-    "recession", "gdp", "inflation", "cpi", "pce",
-    "unemployment", "jobs", "nonfarm", "payroll",
-]
-
 ALL_KEYWORDS = (
     BANK_SENTRAL_KEYWORDS +
     FOREX_KEYWORDS +
     COMMODITY_KEYWORDS +
     YIELD_KEYWORDS +
-    SAHAM_KEYWORDS +
-    GEOPOLITIK_KEYWORDS
+    SAHAM_KEYWORDS
 )
 
 def is_market_relevant(title):
@@ -352,12 +327,12 @@ def get_category(title):
         return "🏦 Bank Sentral"
 
     # Komoditas
-    if any(k in t for k in ["gold", "silver", "xau", "xag", "bullion", "precious metal"]):
+    if any(k in t for k in ["gold", "xau", "bullion"]):
         return "🟡 Komoditas · Emas"
-    if any(k in t for k in ["oil", "crude", "brent", "wti", "opec", "petroleum", "natural gas", "lng"]):
+    if any(k in t for k in ["silver", "xag"]):
+        return "⚪ Komoditas · Perak"
+    if any(k in t for k in ["oil", "crude", "brent", "wti", "opec"]):
         return "🛢️ Komoditas · Minyak"
-    if any(k in t for k in ["copper", "iron ore", "aluminum", "nickel", "commodity", "commodities"]):
-        return "⛏️ Komoditas"
 
     # Yield & Obligasi
     if any(k in t for k in YIELD_KEYWORDS):
@@ -371,9 +346,7 @@ def get_category(title):
     if any(k in t for k in SAHAM_KEYWORDS):
         return "📈 Saham & Indeks"
 
-    # Geopolitik
-    if any(k in t for k in GEOPOLITIK_KEYWORDS):
-        return "🌍 Geopolitik"
+    # Geopolitik — dihapus
 
     return "📰 Pasar Global"
 
