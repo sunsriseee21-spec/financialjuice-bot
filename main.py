@@ -13,6 +13,8 @@ THREAD_ID = 11480
 RSS_URL = "https://rss.app/feeds/r9owT9XW529b35oJ.xml"  # ← Reuters
 CHECK_INTERVAL = 60
 DATA_FILE = "bot_data_reuters.json"  # ← file terpisah dari FinancialJuice
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+FIRECRAWL_API_KEY = os.environ.get("FIRECRAWL_API_KEY", "")
 # =======================================================
 
 HARI_INDO = {
@@ -35,6 +37,102 @@ def format_tanggal_indo(pub_date):
         return pub_date
     except:
         return pub_date
+
+SYSTEM_PROMPT = """Kamu adalah analis pasar keuangan senior untuk terminal PETILASAN, platform berita FX profesional untuk trader Indonesia.
+
+Tugasmu: Ringkas artikel berita keuangan dalam SATU paragraf padat dalam Bahasa Indonesia, menggunakan gaya Trading Economics.
+
+Struktur wajib dalam satu paragraf:
+[Aset + level/pergerakan] → [faktor pendorong utama] → [detail mekanisme/negosiasi] → [angka/data kunci] → [risiko/hambatan] → [proyeksi analis]
+
+Aturan diksi:
+- Gunakan "karena" (bukan "didorong")
+- Gunakan "setelah" (bukan "di mana")
+- Jangan gunakan kata "tersirat"
+- Sertakan kutipan analis jika ada di artikel
+- Sertakan konteks makro yang relevan
+- Gunakan kausalitas berlapis, bukan daftar poin
+- JANGAN gunakan bullet points atau header
+- Hanya satu paragraf, padat dan informatif"""
+
+def scrape_article(url):
+    """Scrape artikel menggunakan Firecrawl."""
+    if not FIRECRAWL_API_KEY:
+        return None
+    headers = {
+        "Authorization": f"Bearer {FIRECRAWL_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {"url": url, "formats": ["markdown"]}
+    try:
+        response = requests.post(
+            "https://api.firecrawl.dev/v1/scrape",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+        text = data.get("data", {}).get("markdown", "").strip()
+        return text[:12000] if len(text) > 12000 else text
+    except Exception as e:
+        print(f"❌ Gagal scrape artikel: {e}")
+        return None
+
+def summarize_with_deepseek(article_text, title):
+    """Ringkas artikel dengan DeepSeek."""
+    if not DEEPSEEK_API_KEY:
+        return None
+    headers = {
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Ringkas artikel berita keuangan berikut:\n\n{article_text}"}
+        ],
+        "temperature": 0.3,
+        "max_tokens": 1024
+    }
+    try:
+        response = requests.post(
+            "https://api.deepseek.com/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        print(f"❌ Gagal summarize DeepSeek: {e}")
+        return None
+
+def send_summary_to_telegram(title, summary, link):
+    """Kirim ringkasan ke ALERT topic."""
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    message = (
+        f"📊 <b>{title}</b>\n\n"
+        f"{summary}\n\n"
+        f"🔗 <a href='{link}'>Baca artikel lengkap</a>"
+    )
+    payload = {
+        "chat_id": CHAT_ID,
+        "message_thread_id": THREAD_ID,
+        "text": message,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code == 200:
+            print(f"✅ Ringkasan terkirim!")
+        else:
+            print(f"❌ Gagal kirim ringkasan: {response.text}")
+    except Exception as e:
+        print(f"❌ Error kirim ringkasan: {e}")
 
 def get_flag_emoji(title):
     t = title.lower()
@@ -411,6 +509,20 @@ def main():
                     save_data(sent_ids, sent_links)
                     new_count += 1
                     time.sleep(2)
+
+                    # === RINGKASAN OTOMATIS ===
+                    print(f"📖 Scraping artikel untuk ringkasan...")
+                    article_text = scrape_article(entry_link)
+                    if article_text:
+                        print(f"🧠 Meringkas dengan DeepSeek...")
+                        summary = summarize_with_deepseek(article_text, translated)
+                        if summary:
+                            send_summary_to_telegram(translated, summary, entry_link)
+                            time.sleep(2)
+                        else:
+                            print(f"⚠️ Ringkasan gagal, skip.")
+                    else:
+                        print(f"⚠️ Scrape gagal, skip ringkasan.")
                 else:
                     print(f"⏭ Skip: {original_title[:60]}...")
                     sent_ids.add(entry_id)
